@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <meta charset="UTF-8" />
+
+  <head>
+    <title>Simple HTML/JS widget sample</title>
+  </head>
+
+  <body>
+    <h3>Simple HTML/JS widget sample</h3>
+    <br />
+    <p>Widget will be displayed below</p>
+    <br />
+    <div id="widget" class="skWidget">Widget should appear here</div>
+
+    <script
+      type="text/javascript"
+      src="https://assets.pingone.com/davinci/latest/davinci.js"
+    ></script>
+    
+    <script>
+        let parametersObject;
+         
+
+        
+        const application_id = "06f7d8eb-923d-4149-a54e-bff3f4aa3a73"
+        const policyId = "d918c04b28c3c4494670496d6dafa89b";
+        const companyId = "ba6f9e79-2cd5-438f-9587-eb30ca1d6df2";
+        const skApiKey = "125978c626fe76e92c778b2b2b2d7423dab4b3d2a1dc6e6b89abb395ce472025663b1dccb18781df0f9681ee7e73d9bfc545d60b714ef29591cb1906a156bf52380c9676ab5cc60f7bed3cbbd071826ff6ede7521ffcc253e9aed88a0b5e195df89ac9cd9c6d831283c59c80d9eeff2881670f1e9cd8742770d3637c3693bc4c";
+        const tokenData = checkSTToken();
+        let body = {
+            policyId: policyId,
+        };
+        if (tokenData) {
+           body.global = {
+            sessionToken: tokenData.session_token,
+            p1UserId: tokenData.userID
+          };
+            parametersObject = {
+                "userID": tokenData.userID, // {{global.parameters.userID}}
+                "session_token": tokenData.session_token, //{{global.parameters.Session_Token}}
+                "application_id": application_id //{{global.parameters.Application}}
+            }
+        }else{
+            console.log("In else")
+            parametersObject = {
+                "application_id": application_id      
+        }
+    } 
+      
+    
+      const skGetTokenUrl =
+        "https://orchestrate-api.pingone.com/v1/company/ba6f9e79-2cd5-438f-9587-eb30ca1d6df2/sdktoken";
+
+      
+      var headers = new Headers();
+      headers.append("X-SK-API-KEY", skApiKey);
+
+      // var requestOptions = {
+      //   method: "GET",
+      //   headers: headers,
+      //   redirect: "follow",
+      // };
+
+      let requestOptions = {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'X-SK-API-KEY': skApiKey,
+          },
+          body: JSON.stringify(body),
+          redirect: "follow"
+      };
+
+      console.log("requestOPtions:", requestOptions)
+
+       
+      fetch(skGetTokenUrl, requestOptions)
+        .then((response) => response.json())
+        .then((responseData) => {
+          var props = {
+            config: {
+              method: "runFlow",
+              apiRoot: "https://auth.pingone.com/",
+              accessToken: responseData.access_token,
+              companyId: companyId,
+              policyId: "d918c04b28c3c4494670496d6dafa89b",
+              includeHttpCredentials: true,
+              parameters: parametersObject
+            },
+            useModal: false,
+            successCallback,
+            errorCallback,
+            onCloseModal,
+          };
+          /*** Invoke the Widget ****/
+          console.log(props);
+          davinci.skRenderScreen(
+            document.getElementsByClassName("skWidget")[0],
+            props
+          );
+        })
+        .catch((error) => console.log("error", error));
+
+      function successCallback(response) {
+        function decodeJWT(token) {
+          const parts = token.split('.');
+          const payload = atob(parts[1]);
+          const decodedPayload = JSON.parse(payload);
+          return decodedPayload;
+        }
+     
+        
+        cookieCreator(response)
+
+        window.alert("Congrats! You have successfully authenticated!")
+      }
+    
+      function errorCallback(error) {
+        console.log(error);
+      }
+
+      function onCloseModal() {
+        console.log("onCloseModal");
+      }
+      function getCookie(name) {
+  const cookies = document.cookie.split(';');
+  for (let c of cookies) {
+    c = c.trim();
+    if (c.startsWith(name + '=')) {
+      return c.substring(name.length + 1);
+    }
+  }
+  return null;
+}
+
+function checkSTToken() {
+  const rawCookie = getCookie('ST_token');
+  if (!rawCookie) {
+    console.log('ST_token cookie not found');
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(decodeURIComponent(rawCookie));
+    console.log('ST_token found:', decoded);
+    
+    return decoded;
+  } catch (e) {
+    console.error('Failed to parse ST_token cookie:', e);
+    return null;
+  }
+}
+function cookieCreator(response) {
+        console.log("response",response)
+        const payload = {
+            session_token: response.sessionToken,
+            access_token: response.access_token,
+            maxAge: response.sessionTokenMaxAge,
+            issued: response.issued_at,
+            userID: response.additionalProperties.userID
+        };
+
+
+        const encodedValue = encodeURIComponent(JSON.stringify(payload));
+
+        const expirationTime = response.expires_in
+
+        // Set cookie to expire in 3600 seconds (1 hour)
+        const date = new Date();
+        date.setTime(date.getTime() + expirationTime * 1000); 
+        const expires = date.toUTCString();
+
+        document.cookie = `ST_token=${encodedValue}; expires=${expires}; path=/; Secure; SameSite=Strict`;
+    }
+
+    </script>
+  </body>
+</html>
